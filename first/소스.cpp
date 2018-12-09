@@ -8,7 +8,7 @@
 #include "dirent.h"
 using namespace cv;
 using namespace std;
-
+int smallcount = 0;
 Mat CannyEdge(Mat img_gray, int th_high, int th_low);
 
 Mat FindPlate(String path);
@@ -59,11 +59,12 @@ int main()
 	}
 	cout << "Total : " << total << endl;
 	cout << "Success : " << success << endl;
-
+	cout << "Small : " << smallcount << endl;
 	return 0;
 }
 Mat FindPlate(String path)
 {
+
 	Mat out;
 	Mat image, image2, image3, drawing;  //  Make images.
 	Rect rect, temp_rect;  //  Make temporary rectangles.
@@ -71,16 +72,17 @@ Mat FindPlate(String path)
 	vector<Vec4i> hierarchy;
 
 	double ratio, delta_x, delta_y, gradient;  //  Variables for 'Snake' algorithm.
-	int number_select=-1, plate_select = -1, plate_width, count, friend_count = 0, number_count = 0, plate_count = 0;
+	int number_select = -1, plate_select = -1, plate_width, count, friend_count = 0, number_count = 0, plate_count = 0;
 
 	image = imread(path);  //  Load an image file.   // 4가 조금 안됨
 
-	/*if (image.rows < 500 || image.cols < 500)
+	if ( image.cols < 500)
 	{
 		cout << "Image is too small" << endl;
 		out.resize(0);
+		smallcount++;
 		return out;
-	}*/
+	}
 	if (image.rows > 1000)
 	{
 		resize(image, image, Size(), 1000.0 / (double)image.rows, 1000.0 / (double)image.rows);
@@ -104,7 +106,6 @@ Mat FindPlate(String path)
 	Mat tempImage, drawing2;
 	image2.copyTo(tempImage);
 	drawing2 = Mat::zeros(tempImage.size(), CV_8UC3);
-	//Canny(tempImage, tempImage, 100, 300, 3); 
 	tempImage = CannyEdge(tempImage, 300, 100);
 	//Canny(tempImage, tempImage, 100, 300, 3);  //  Getting edges by Canny algorithm.
 
@@ -123,16 +124,17 @@ Mat FindPlate(String path)
 
 		//  Filtering rectangles height/width ratio, and size.
 
-		if ((ratio <= 4) && (ratio >= 0.5) && (tempBoundRect[i].area() >= 100)) {
-			drawContours(drawing2, tempContours, i, Scalar(0, 255, 255), 1, 8, tempHierarchy, 0, Point());
-			rectangle(drawing2, tempBoundRect[i].tl(), tempBoundRect[i].br(), Scalar(255, 0, 0), 1, 8, 0);
+		//if ((ratio <= 4) && (ratio >= 0.5) && (tempBoundRect[i].area() >= 100)) {
+		drawContours(drawing2, tempContours, i, Scalar(0, 255, 255), 1, 8, tempHierarchy, 0, Point());
+		rectangle(drawing2, tempBoundRect[i].tl(), tempBoundRect[i].br(), Scalar(255, 0, 0), 1, 8, 0);
 
 
-			//  Include only suitable rectangles.
-			tempBoundRect2[number_count++] = tempBoundRect[i];
-		}
+		//  Include only suitable rectangles.
+		tempBoundRect2[number_count++] = tempBoundRect[i];
+		//}
 	}
-	if (tempBoundRect2.size() > 2000)
+	//imshow("temp", drawing2);
+	if (tempBoundRect2.size() > 2800)
 		blur(image2, image2, Size(5, 5));
 	else
 		blur(image2, image2, Size(3, 3));
@@ -144,7 +146,8 @@ Mat FindPlate(String path)
 
 
 	number_count = 0;
-	Canny(image2, image2, 100, 300, 3);  //  Getting edges by Canny algorithm.
+	//Canny(image2, image2, 300, 300, 3);  //  Getting edges by Canny algorithm.
+	image2 = CannyEdge(image2, 300, 100);
 	//imshow("Original->Gray->Canny", image2);
 	//waitKey(0);
 
@@ -261,10 +264,15 @@ Mat FindPlate(String path)
 		}                           //  It's similar to license plate width, Right?
 
 	}
-
+	//waitKey(0);
 	//  Drawing most full snake friend on the image.
-	if (number_select == -1)//exception
-		return Mat();
+	if (number_select == -1)
+	{
+		cout << "not find the license plate" << endl;
+		out.resize(0);
+		return out;
+	}
+
 	rectangle(image3, boundRect2[number_select].tl(), boundRect2[number_select].br(), Scalar(0, 0, 255), 2, 8, 0);
 	line(image3, boundRect2[number_select].tl(), Point(boundRect2[number_select].tl().x + plate_width, boundRect2[number_select].tl().y), Scalar(0, 0, 255), 1, 8, 0);
 	//imshow("Rectangles on original", image3);
@@ -289,26 +297,26 @@ Mat FindPlate(String path)
 
 	//  Shows license plate, and save image file.
 
-	//if (plate_select < 0)
-	//	cout << "not find the license plate" << endl;
-	//else
-	//	imshow("Region of interest", image(boundRect3[plate_select]));
+	if (plate_select < 0)
+	{
+		cout << "not find the license plate" << endl;
+		out.resize(0);
+		return out;
+	}
+		//imshow("Region of interest", image(boundRect3[plate_select]));
 	//imshow("Region of interest", image(Rect(boundRect2[number_select].tl().x - 20, boundRect2[number_select].tl().y - 20, plate_width + 40, plate_width*0.3)));
 	//waitKey(0);
 
 
 
 	//imwrite("/home/ubuntu01/Desktop/Plates/1-1.JPG", image(Rect(boundRect2[number_select].tl().x - 20, boundRect2[number_select].tl().y - 20, plate_width + 40, plate_width*0.3)));
+	//PlateRect = boundRect3[plate_select];
 	image.copyTo(out);
 	rectangle(out, boundRect3[plate_select].tl(), boundRect3[plate_select].br(), Scalar(0, 0, 255), 3, 8, 0);
-	/*Rect rr(boundRect3[plate_select].tl(), boundRect3[plate_select].br());
-	r = rr;*/
-	//모자이크 하는 부분이라 주석
 	//imshow("dd", out);
 	//waitKey(0);
-	/*r.tl().x;*/
-	return out;
 
+	return out;
 
 }
 Mat CannyEdge(Mat img_gray, int th_high, int th_low)
